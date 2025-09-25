@@ -8,10 +8,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from backend.main import app, DB_PATH
 
 
-# ✅ use the real ADMIN_KEY (already set in your environment)
-REAL_ADMIN_KEY = os.environ["ADMIN_KEY"]
+# ✅ Ensure DB schema exists before tests
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    with open(os.path.join(os.path.dirname(__file__), "..", "db", "schema.sql"), "r") as f:
+        cursor.executescript(f.read())
+    conn.commit()
+    conn.close()
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "psp.db")
+@pytest.fixture(scope="session", autouse=True)
+def setup_db():
+    """Create tables if not exist at the start of the test session"""
+    init_db()
 
 @pytest.fixture(autouse=True)
 def reset_db():
@@ -28,6 +37,5 @@ def reset_db():
 def client():
     return TestClient(app)
 
-@pytest.fixture
 def admin_key():
-    return REAL_ADMIN_KEY
+    return os.environ.get("ADMIN_KEY")
