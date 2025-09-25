@@ -1,18 +1,18 @@
-venv/
-
-.DS_Store
-# Ignore local DBs
+# DBs
 psp.db
 db/psp.db
 backend/psp.db
 
-# Ignore compliance logs
+# Compliance logs
 db/compliance_logs/
 
-# Ignore local test files
-*.pyc
-__pycache__/
-
-# Ignore local helpers
+# Local-only helper scripts
 backend/test_ad.py
 db/db_init.py
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Secrets
+.env
