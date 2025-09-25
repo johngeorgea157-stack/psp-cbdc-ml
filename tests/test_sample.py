@@ -5,14 +5,14 @@ def test_create_wallet(client):
     data = resp.json()
     assert data["user"] == "john"
 
-def test_transfer_and_mint(client, admin_key):
+def test_transfer_and_mint(client):
     client.post("/create_wallet?user=John&currency=INR-CBDC")
     client.post("/create_wallet?user=Alice&currency=INR-CBDC")
 
     mint_resp = client.post(
-    "/mint?user=John&amount=500&currency=INR-CBDC",
-    headers={"x-superkey": os.environ["ADMIN_KEY"]}
-  )
+        "/mint?user=John&amount=500&currency=INR-CBDC",
+        headers={"x-superkey": os.environ["ADMIN_KEY"]}
+    )
     assert mint_resp.status_code == 200
 
     transfer_resp = client.post(
