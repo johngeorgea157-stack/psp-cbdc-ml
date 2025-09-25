@@ -12,3 +12,7 @@ db/compliance_logs/
 # Ignore local test files
 *.pyc
 __pycache__/
+
+# Ignore local helpers
+backend/test_ad.py
+db/db_init.py
