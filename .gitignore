@@ -1,4 +1,14 @@
 venv/
-__pycache__/
-*.pyc
+
 .DS_Store
+# Ignore local DBs
+psp.db
+db/psp.db
+backend/psp.db
+
+# Ignore compliance logs
+db/compliance_logs/
+
+# Ignore local test files
+*.pyc
+__pycache__/
