@@ -23,8 +23,8 @@ It integrates:
 ## Roadmap
 - Phase 1 → Project setup (✅ done)
 - Phase 2 → PSP + CBDC wallet APIs (✅ done)
-- Phase 3 → AI/ML integration (coming next)
-- Phase 4 → Blockchain audit trail
+- Phase 3 → AI/ML integration (✅ basic anomaly detection done)
+- Phase 4 → Blockchain audit trail (next up, Day 8+)
 - Phase 5 → Research & Policy documentation
 - Phase 6 → Packaging + Presentation
 
