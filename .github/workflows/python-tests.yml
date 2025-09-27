@@ -27,6 +27,12 @@ jobs:
 
     - name: Run tests with coverage
       env:
-        PYTHONPATH: .   # ✅ ensure backend is importable
-        ADMIN_KEY: ${{ secrets.ADMIN_KEY }}   # ✅ secure secret
-      run: pytest -v tests/ --cov=backend --cov-report=term-missing
+        PYTHONPATH: .
+        ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+      run: |
+        pytest -v tests/ --cov=backend --cov-report=xml --cov-report=term-missing
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}

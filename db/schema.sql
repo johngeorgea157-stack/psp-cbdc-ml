@@ -15,3 +15,13 @@ CREATE TABLE IF NOT EXISTS transactions (
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     type TEXT
 );
+CREATE TABLE IF NOT EXISTS pending_transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user TEXT NOT NULL,
+    to_user TEXT,
+    amount REAL NOT NULL,
+    currency TEXT NOT NULL,
+    type TEXT NOT NULL,   -- "mint" or "transfer"
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    confirmed INTEGER DEFAULT 0  -- 0 = pending, 1 = confirmed
+);

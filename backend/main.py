@@ -58,13 +58,15 @@ def list_wallets():
         {"user": user, "balances": balances}
         for user, balances in wallets.items()
     ]
+from datetime import datetime, timedelta
 
 @app.post("/transfer")
 def transfer(
     from_user: str = Query(..., description="Sender wallet owner"),
     to_user: str = Query(..., description="Receiver wallet owner"),
     amount: float = Query(..., description="Amount to transfer"),
-    currency: str = Query(..., description="Currency type, e.g. INR-CBDC or USD-Token")
+    currency: str = Query(..., description="Currency type, e.g. INR-CBDC or USD-Token"),
+    confirm: bool = Query(False, description="Set to True to confirm duplicate-like transactions")
 ):  
     from_user = from_user.strip().lower()
     to_user = to_user.strip().lower()
@@ -89,16 +91,35 @@ def transfer(
         conn.close()
         raise HTTPException(status_code=404, detail="Receiver wallet not found")
 
-    # 3. Update balances
+    # 3. Duplicate transaction check (last 30 sec, same from/to/amount/currency)
+    cursor.execute("""
+        SELECT timestamp FROM transactions
+        WHERE from_wallet=? AND to_wallet=? AND amount=? AND currency=? AND type='transfer'
+        ORDER BY timestamp DESC LIMIT 1
+    """, (from_user, to_user, amount, currency))
+    last_tx = cursor.fetchone()
+
+    if last_tx:
+        last_time = datetime.fromisoformat(last_tx[0])
+        if datetime.utcnow() - last_time < timedelta(seconds=30) and not confirm:
+            conn.close()
+            return {
+                "status": "warning",
+                "message": "This looks like a duplicate transfer in the last 30s. Confirm again to proceed.",
+                "duplicate": True
+            }
+
+    # 4. Update balances
     cursor.execute("UPDATE wallets SET balance = balance - ? WHERE id=?", (amount, sender[0]))
     cursor.execute("UPDATE wallets SET balance = balance + ? WHERE id=?", (amount, receiver[0]))
 
-    # 4. Log transaction
+    # 5. Log transaction
     cursor.execute(
         "INSERT INTO transactions (from_wallet, to_wallet, amount, currency, type) VALUES (?, ?, ?, ?, ?)",
         (from_user, to_user, amount, currency, "transfer")
     )
     log_compliance(from_user, to_user, amount, currency, "transfer")
+
     conn.commit()
     conn.close()
 
@@ -130,13 +151,16 @@ def fund_wallet(
 ADMIN_KEY = os.environ.get("ADMIN_KEY", None)
 
 
+from datetime import datetime, timedelta
+from fastapi import Header
 
 @app.post("/mint")
 def mint(
     user: str = Query(..., description="Wallet owner to credit"),
     amount: float = Query(..., description="Amount to mint (testing only)"),
     currency: str = Query(..., description="Currency, e.g. INR-CBDC"),
-    x_superkey: str = Header(..., description="Superkey for authorization")  # now passed in header
+    x_superkey: str = Header(..., description="Superkey for authorization"),  # passed in header
+    confirm: bool = Query(False, description="Set to True to confirm duplicate-like minting")
 ):  
     user = user.strip().lower()
     if ADMIN_KEY is None:
@@ -149,21 +173,44 @@ def mint(
     conn = get_db()
     cursor = conn.cursor()
 
+    # Ensure wallet exists
     cursor.execute("SELECT id FROM wallets WHERE user=? AND currency=?", (user, currency))
     wallet = cursor.fetchone()
     if not wallet:
         conn.close()
         raise HTTPException(status_code=404, detail="Wallet not found")
 
+    # Duplicate minting check (last 30s, same user/currency/amount)
+    cursor.execute("""
+        SELECT timestamp FROM transactions
+        WHERE to_wallet=? AND amount=? AND currency=? AND type='mint'
+        ORDER BY timestamp DESC LIMIT 1
+    """, (user, amount, currency))
+    last_tx = cursor.fetchone()
+
+    if last_tx:
+        last_time = datetime.fromisoformat(last_tx[0])
+        if datetime.utcnow() - last_time < timedelta(seconds=30) and not confirm:
+            conn.close()
+            return {
+                "status": "warning",
+                "message": "This looks like a duplicate minting in the last 30s. Confirm again to proceed.",
+                "duplicate": True
+            }
+
+    # Update wallet balance
     cursor.execute("UPDATE wallets SET balance = balance + ? WHERE id=?", (amount, wallet[0]))
+
+    # Log the mint
     cursor.execute(
         "INSERT INTO transactions (from_wallet, to_wallet, amount, currency, type) VALUES (?, ?, ?, ?, ?)",
         ("CENTRAL_BANK", user, amount, currency, "mint")
     )
-    
+    log_compliance("CENTRAL_BANK", user, amount, currency, "mint")
+
     conn.commit()
     conn.close()
-    log_compliance("CENTRAL_BANK", user, amount, currency, "mint")
+
     return {"status": "minted", "user": user, "amount": amount, "currency": currency}
 
 @app.get("/list_transactions")
