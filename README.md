@@ -6,7 +6,8 @@
 ![Python](https://img.shields.io/badge/python-3.11+-brightgreen.svg)
 
 ## Overview
-This project is a prototype **Payment Service Provider (PSP)** layer designed for **CBDC (Central Bank Digital Currency)** and tokenized settlement in IFSC GIFT City.  
+This project is a prototype **Payment Service Provider (PSP)** layer designed for **CBDC (Central Bank Digital Currency)** and tokenized settlement in IFSC GIFT City. (devolopment phase)
+
 It integrates:
 - ✅ PSP Wallet APIs (`/create_wallet`, `/transfer`, `/list_wallets`, `/mint`)
 - ✅ Mock CBDC + Token support (INR-CBDC, USD-Token)
