@@ -7,10 +7,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from backend.main import app, DB_PATH
 
-
+os.environ["PYTEST_ADDOPTS"] = "--dist no"
 # ✅ Ensure DB schema exists before tests
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=5)
     cursor = conn.cursor()
     with open(os.path.join(os.path.dirname(__file__), "..", "db", "schema.sql"), "r") as f:
         cursor.executescript(f.read())

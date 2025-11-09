@@ -1,0 +1,14 @@
+# PSP-CBDC-ML × Polkadot Integration
+
+### 🔍 Project Overview
+This branch integrates **Polkadot blockchain** into the existing
+**CBDC + ML risk-monitoring system**.
+
+- **CBDC Layer** → Simulates retail or wholesale CBDC transactions  
+- **ML Layer** → Detects anomalies in transaction patterns  
+- **Blockchain Layer (Polkadot)** → Records verified transactions immutably  
+
+### 🎯 Hackathon Goal
+Demonstrate a **machine-learning-enabled CBDC ledger** using the Polkadot testnet.
+
+### 🧱 Architecture
