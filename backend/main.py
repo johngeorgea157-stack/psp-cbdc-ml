@@ -3,12 +3,62 @@ from fastapi import Header
 import sqlite3
 import os
 from backend.utils import get_db, log_compliance
-
+from sklearn.ensemble import IsolationForest
+import joblib
+import pandas as pd
 
 app = FastAPI()
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "psp.db")
 
+@app.on_event("startup")
+def load_model():
+    model_path = "ml/anomaly_model.pkl"
+    if os.path.exists(model_path):
+        app.state.ml_model = joblib.load(model_path)
+        print("✅ ML model loaded")
+    else:
+        app.state.ml_model = None
+        print("⚠️ No ML model found, risk scoring disabled")
 
+def score_transaction(from_wallet, to_wallet, amount, currency, tx_type, conn):
+    """
+    Hybrid risk scoring:
+    - Rule-based duplicate detection
+    - ML anomaly scoring
+    """
+    risk_flags = []
+
+    # 1. Duplicate transaction rule (within 30s)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT timestamp FROM transactions
+        WHERE from_wallet=? AND to_wallet=? AND amount=? AND currency=? AND type=?
+        ORDER BY timestamp DESC LIMIT 1
+    """, (from_wallet, to_wallet, amount, currency, tx_type))
+    last_tx = cursor.fetchone()
+
+    if last_tx:
+        last_time = datetime.fromisoformat(last_tx[0])
+        if datetime.now() - last_time < timedelta(seconds=30):
+            risk_flags.append("duplicate_within_30s")
+
+    # 2. ML anomaly detection (Isolation Forest or similar)
+    try:
+        import joblib
+        import pandas as pd
+        model = joblib.load("ml/anomaly_model.pkl")
+        data = pd.DataFrame([{"amount": amount, "currency_code": hash(currency) % 1000}])
+        pred = model.predict(data[["amount", "currency_code"]])[0]
+        if pred == -1:
+            risk_flags.append("ml_anomaly")
+    except Exception:
+        # if model not available, skip ML
+        risk_flags.append("ml_unavailable")
+
+    # Final decision
+    if not risk_flags:
+        return "normal"
+    return ",".join(risk_flags)
 @app.get("/")
 def root():
     return {"message": "PSP + CBDC + AI/ML Project Running 🚀"}
@@ -118,13 +168,15 @@ def transfer(
         "INSERT INTO transactions (from_wallet, to_wallet, amount, currency, type) VALUES (?, ?, ?, ?, ?)",
         (from_user, to_user, amount, currency, "transfer")
     )
-    log_compliance(from_user, to_user, amount, currency, "transfer")
+    risk = score_transaction(amount, currency)
+    log_compliance(from_user, to_user, amount, currency, "transfer", risk=risk)
 
     conn.commit()
     conn.close()
 
     return {
         "status": "success",
+        "risk": risk,
         "from": from_user,
         "to": to_user,
         "amount": amount,
@@ -206,7 +258,8 @@ def mint(
         "INSERT INTO transactions (from_wallet, to_wallet, amount, currency, type) VALUES (?, ?, ?, ?, ?)",
         ("CENTRAL_BANK", user, amount, currency, "mint")
     )
-    log_compliance("CENTRAL_BANK", user, amount, currency, "mint")
+    risk = score_transaction("CENTRAL_BANK", user, amount, currency, "mint", conn)
+    log_compliance("CENTRAL_BANK", user, amount, currency, "mint", risk)
 
     conn.commit()
     conn.close()
