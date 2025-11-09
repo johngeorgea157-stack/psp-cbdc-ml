@@ -164,11 +164,15 @@ def transfer(
     cursor.execute("UPDATE wallets SET balance = balance + ? WHERE id=?", (amount, receiver[0]))
 
     # 5. Log transaction
+    # 5. Log transaction
     cursor.execute(
         "INSERT INTO transactions (from_wallet, to_wallet, amount, currency, type) VALUES (?, ?, ?, ?, ?)",
         (from_user, to_user, amount, currency, "transfer")
     )
-    risk = score_transaction(amount, currency)
+
+    # Run ML risk scoring after transaction
+    
+    risk = score_transaction(from_user, to_user, amount, currency, "transfer", conn)
     log_compliance(from_user, to_user, amount, currency, "transfer", risk=risk)
 
     conn.commit()
