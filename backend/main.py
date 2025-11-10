@@ -184,7 +184,7 @@ def transfer(
         amount=amount,
         risk_score=risk
     )
-
+    cursor.execute("UPDATE transactions SET blockchain_hash=? WHERE id=?", (blockchain_hash, tx_id))
     # ✅ 8. Commit to DB
     conn.commit()
     conn.close()
@@ -199,27 +199,6 @@ def transfer(
         "currency": currency,
         "blockchain_hash": blockchain_hash
     }
-
-@app.post("/fund_wallet")
-def fund_wallet(
-    user: str = Query(...),
-    amount: float = Query(...),
-    currency: str = Query(...)
-):
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM wallets WHERE user=? AND currency=?", (user, currency))
-    wallet = cursor.fetchone()
-    if not wallet:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Wallet not found")
-    cursor.execute("UPDATE wallets SET balance = balance + ? WHERE id=?", (amount, wallet[0]))
-    conn.commit()
-    conn.close()
-    return {"status": "funded", "user": user, "amount": amount, "currency": currency}
-
-ADMIN_KEY = os.environ.get("ADMIN_KEY", None)
-
 
 from datetime import datetime, timedelta
 from fastapi import Header
@@ -291,7 +270,7 @@ def mint(
         amount=amount,
         risk_score=risk
     )
-
+    cursor.execute("UPDATE transactions SET blockchain_hash=? WHERE id=?", (blockchain_hash, tx_id))
     # ✅ Commit to DB and close connection
     conn.commit()
     conn.close()
@@ -337,6 +316,27 @@ def list_transactions(user: str = None):
         }
         for r in rows
     ]
+@app.post("/fund_wallet")
+def fund_wallet(
+    user: str = Query(...),
+    amount: float = Query(...),
+    currency: str = Query(...)
+):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM wallets WHERE user=? AND currency=?", (user, currency))
+    wallet = cursor.fetchone()
+    if not wallet:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Wallet not found")
+    cursor.execute("UPDATE wallets SET balance = balance + ? WHERE id=?", (amount, wallet[0]))
+    conn.commit()
+    conn.close()
+    return {"status": "funded", "user": user, "amount": amount, "currency": currency}
+
+ADMIN_KEY = os.environ.get("ADMIN_KEY", None)
+
+
 
 import csv
 from fastapi.responses import StreamingResponse
