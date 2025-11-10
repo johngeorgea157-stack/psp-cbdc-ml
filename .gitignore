@@ -19,3 +19,6 @@ __pycache__/
 
 .DS_Store
 abstract.txt
+
+echo ".coverage" >> .gitignore
+echo "substrate/" >> .gitignore
