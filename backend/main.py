@@ -6,6 +6,7 @@ from backend.utils import get_db, log_compliance
 from sklearn.ensemble import IsolationForest
 import joblib
 import pandas as pd
+from blockchain.ledger import log_cbdc_transfer
 
 app = FastAPI()
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "psp.db")
@@ -123,7 +124,7 @@ def transfer(
     conn = get_db()
     cursor = conn.cursor()
 
-    # 1. Check sender balance
+    # 🧩 1. Check sender balance
     cursor.execute("SELECT id, balance FROM wallets WHERE user=? AND currency=?", (from_user, currency))
     sender = cursor.fetchone()
     if not sender:
@@ -134,14 +135,14 @@ def transfer(
         conn.close()
         raise HTTPException(status_code=400, detail="Insufficient balance")
 
-    # 2. Check receiver wallet
+    # 🧩 2. Check receiver wallet
     cursor.execute("SELECT id FROM wallets WHERE user=? AND currency=?", (to_user, currency))
     receiver = cursor.fetchone()
     if not receiver:
         conn.close()
         raise HTTPException(status_code=404, detail="Receiver wallet not found")
 
-    # 3. Duplicate transaction check (last 30 sec, same from/to/amount/currency)
+    # 🧩 3. Duplicate transaction check (last 30 sec, same from/to/amount/currency)
     cursor.execute("""
         SELECT timestamp FROM transactions
         WHERE from_wallet=? AND to_wallet=? AND amount=? AND currency=? AND type='transfer'
@@ -159,33 +160,46 @@ def transfer(
                 "duplicate": True
             }
 
-    # 4. Update balances
+    # 🧩 4. Update balances
     cursor.execute("UPDATE wallets SET balance = balance - ? WHERE id=?", (amount, sender[0]))
     cursor.execute("UPDATE wallets SET balance = balance + ? WHERE id=?", (amount, receiver[0]))
 
-    # 5. Log transaction
-    # 5. Log transaction
+    # 🧩 5. Log transaction
     cursor.execute(
         "INSERT INTO transactions (from_wallet, to_wallet, amount, currency, type) VALUES (?, ?, ?, ?, ?)",
         (from_user, to_user, amount, currency, "transfer")
     )
 
-    # Run ML risk scoring after transaction
-    
+    tx_id = cursor.lastrowid
+
+    # 🧠 6. Run ML risk scoring
     risk = score_transaction(from_user, to_user, amount, currency, "transfer", conn)
     log_compliance(from_user, to_user, amount, currency, "transfer", risk=risk)
 
+    # 🔗 7. Blockchain logging (Polkadot + fallback)
+    blockchain_hash = log_cbdc_transfer(
+        tx_id=tx_id,
+        sender=from_user,
+        receiver=to_user,
+        amount=amount,
+        risk_score=risk
+    )
+
+    # ✅ 8. Commit to DB
     conn.commit()
     conn.close()
 
+    # 🧾 9. Return full response
     return {
         "status": "success",
         "risk": risk,
         "from": from_user,
         "to": to_user,
         "amount": amount,
-        "currency": currency
+        "currency": currency,
+        "blockchain_hash": blockchain_hash
     }
+
 @app.post("/fund_wallet")
 def fund_wallet(
     user: str = Query(...),
@@ -215,28 +229,28 @@ def mint(
     user: str = Query(..., description="Wallet owner to credit"),
     amount: float = Query(..., description="Amount to mint (testing only)"),
     currency: str = Query(..., description="Currency, e.g. INR-CBDC"),
-    x_superkey: str = Header(..., description="Superkey for authorization"),  # passed in header
+    x_superkey: str = Header(..., description="Superkey for authorization"),
     confirm: bool = Query(False, description="Set to True to confirm duplicate-like minting")
 ):  
     user = user.strip().lower()
     if ADMIN_KEY is None:
         raise HTTPException(status_code=503, detail="Admin key not configured on server")
 
-    # Verify user-provided key matches the server secret
+    # 🔐 Verify admin key
     if x_superkey != ADMIN_KEY:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     conn = get_db()
     cursor = conn.cursor()
 
-    # Ensure wallet exists
+    # ✅ Ensure wallet exists
     cursor.execute("SELECT id FROM wallets WHERE user=? AND currency=?", (user, currency))
     wallet = cursor.fetchone()
     if not wallet:
         conn.close()
         raise HTTPException(status_code=404, detail="Wallet not found")
 
-    # Duplicate minting check (last 30s, same user/currency/amount)
+    # ⚠️ Duplicate minting check (within 30 seconds)
     cursor.execute("""
         SELECT timestamp FROM transactions
         WHERE to_wallet=? AND amount=? AND currency=? AND type='mint'
@@ -254,45 +268,59 @@ def mint(
                 "duplicate": True
             }
 
-    # Update wallet balance
+    # 💰 Update wallet balance
     cursor.execute("UPDATE wallets SET balance = balance + ? WHERE id=?", (amount, wallet[0]))
 
-    # Log the mint
+    # 🧾 Log the transaction
     cursor.execute(
         "INSERT INTO transactions (from_wallet, to_wallet, amount, currency, type) VALUES (?, ?, ?, ?, ?)",
         ("CENTRAL_BANK", user, amount, currency, "mint")
     )
+
+    tx_id = cursor.lastrowid  # unique transaction ID
+
+    # 🧠 Run risk scoring
     risk = score_transaction("CENTRAL_BANK", user, amount, currency, "mint", conn)
     log_compliance("CENTRAL_BANK", user, amount, currency, "mint", risk)
 
+    # 🔗 Log mint event to Polkadot (or mock hash if unavailable)
+    blockchain_hash = log_cbdc_transfer(
+        tx_id=tx_id,
+        sender="CENTRAL_BANK",
+        receiver=user,
+        amount=amount,
+        risk_score=risk
+    )
+
+    # ✅ Commit to DB and close connection
     conn.commit()
     conn.close()
 
-    return {"status": "minted", "user": user, "amount": amount, "currency": currency}
+    return {
+        "status": "minted",
+        "user": user,
+        "amount": amount,
+        "currency": currency,
+        "risk": risk,
+        "blockchain_hash": blockchain_hash
+    }
+
 
 @app.get("/list_transactions")
 def list_transactions(user: str = None):
-    """
-    List all transactions. If ?user= is given, filter by that user.
-    """
     conn = get_db()
     cursor = conn.cursor()
 
+    query = """
+        SELECT from_wallet, to_wallet, amount, currency, timestamp, type, blockchain_hash
+        FROM transactions
+    """
     if user:
-        user = user.strip().lower()
-        cursor.execute(
-            """
-            SELECT from_wallet, to_wallet, amount, currency, timestamp, type
-            FROM transactions
-            WHERE from_wallet = ? OR to_wallet = ?
-            ORDER BY timestamp DESC
-            """,
-            (user, user)
-        )
+        query += " WHERE from_wallet=? OR to_wallet=? ORDER BY timestamp DESC"
+        cursor.execute(query, (user, user))
     else:
-        cursor.execute(
-            "SELECT from_wallet, to_wallet, amount, currency, timestamp, type FROM transactions ORDER BY timestamp DESC"
-        )
+        query += " ORDER BY timestamp DESC"
+        cursor.execute(query)
 
     rows = cursor.fetchall()
     conn.close()
@@ -304,7 +332,8 @@ def list_transactions(user: str = None):
             "amount": r[2],
             "currency": r[3],
             "timestamp": r[4],
-            "type": r[5]
+            "type": r[5],
+            "blockchain_hash": r[6]
         }
         for r in rows
     ]
