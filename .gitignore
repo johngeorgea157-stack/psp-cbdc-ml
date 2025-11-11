@@ -21,4 +21,6 @@ __pycache__/
 abstract.txt
 
 echo ".coverage" >> .gitignore
-echo "substrate/" >> .gitignore
+echo "substrate/" >> .gitignoredb/charts/
+*.png
+.coverage
