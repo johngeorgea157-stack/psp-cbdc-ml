@@ -391,8 +391,114 @@ def export_transactions(user: str = None, format: str = "csv"):
     output.seek(0)
 
     return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": "attachment; filename=transactions.csv"})
+@app.post("/demo_cbdc_flow")
+def demo_cbdc_flow():
+    """
+    Runs the full demo flow programmatically:
+    1️⃣ Create wallets
+    2️⃣ Mint CBDC
+    3️⃣ Transfer funds
+    4️⃣ Return all results
+    """
+    import requests
 
-from datetime import datetime
+    base_url = "http://127.0.0.1:8000"
+    admin_key = os.environ.get("ADMIN_KEY", None)
+
+    if not admin_key:
+        raise HTTPException(status_code=503, detail="Admin key not configured")
+
+    results = {}
+
+    # Step 1: Wallet creation
+    results["create_wallets"] = [
+        requests.post(f"{base_url}/create_wallet?user=John&currency=INR-CBDC").json(),
+        requests.post(f"{base_url}/create_wallet?user=Alice&currency=INR-CBDC").json()
+    ]
+
+    # Step 2: Mint funds
+    results["mint"] = requests.post(
+        f"{base_url}/mint?user=John&amount=500&currency=INR-CBDC",
+        headers={"x-superkey": admin_key}
+    ).json()
+
+    # Step 3: Transfer funds
+    results["transfer"] = requests.post(
+        f"{base_url}/transfer?from_user=John&to_user=Alice&amount=100&currency=INR-CBDC"
+    ).json()
+
+    # Step 4: List balances
+    results["wallets"] = requests.get(f"{base_url}/list_wallets").json()
+
+    # Step 5: List transactions
+    results["transactions"] = requests.get(f"{base_url}/list_transactions").json()[:5]
+
+    return {
+        "message": "✅ CBDC Demo Flow Completed Successfully",
+        "results": results
+    }
+from fastapi import HTTPException
+from fastapi.responses import FileResponse
+import matplotlib
+matplotlib.use("Agg")  # headless backend for server environments
+import matplotlib.pyplot as plt
+import io, base64, os
+import pandas as pd
+
+@app.get("/ml_risk_insights")
+def ml_risk_insights(limit: int = 10):
+    """
+    Returns recent ML risk analysis results for the last N transactions.
+    Response JSON includes:
+      - summary: dictionary of risk counts
+      - chart: data:image/png;base64,... (ready to embed)
+      - file: server file path for direct download (FileResponse works)
+    """
+    # 1. Read recent transactions
+    conn = get_db()
+    try:
+        df = pd.read_sql_query(
+            "SELECT id, amount, type, risk_score AS risk, timestamp FROM transactions ORDER BY timestamp DESC LIMIT ?",
+            conn, params=(limit,)
+        )
+    finally:
+        conn.close()
+
+    if df.empty:
+        return {"message": "No transactions found", "summary": {}, "chart": None, "file": None}
+
+    # 2. Produce a simple bar chart of risk categories
+    summary = df["risk"].fillna("unknown").value_counts().to_dict()
+
+    fig, ax = plt.subplots(figsize=(6, 4))
+    # bar chart of counts
+    ax.bar(summary.keys(), summary.values())
+    ax.set_title("Recent ML Risk Classifications")
+    ax.set_xlabel("Risk Category")
+    ax.set_ylabel("Count")
+    plt.tight_layout()
+
+    # Ensure directory exists
+    os.makedirs("db/charts", exist_ok=True)
+    chart_path = "db/charts/ml_risk_chart.png"
+
+    # Save to disk (headless-safe)
+    plt.savefig(chart_path)
+    plt.close(fig)
+
+    # Load file and encode as base64 for embedding
+    with open(chart_path, "rb") as f:
+        b = f.read()
+    img_b64 = base64.b64encode(b).decode("utf-8")
+    img_data_uri = f"data:image/png;base64,{img_b64}"
+
+    # Return both summary and embedded chart + file path
+    return {
+        "summary": summary,
+        "chart": img_data_uri,
+        "file": chart_path
+    }
+# from datetime import datetime
 
 LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "db", "compliance_logs")
 
