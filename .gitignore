@@ -27,4 +27,4 @@ echo "substrate/" >> .gitignoredb/charts/
 
 psp.db
 psp.db-shm
-psp.db-wal
+psp.db-wal.coverage
