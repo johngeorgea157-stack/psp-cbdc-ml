@@ -1,20 +1,21 @@
 # tests/test_ml.py
-import os
 import joblib
-import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 import warnings
 
 warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
+
 def test_ml_pipeline(tmp_path):
     # Step 1: Dummy data
-    data = pd.DataFrame({
-        "user": ["alice", "bob", "charlie"],
-        "amount": [100, 2000, 50],
-        "currency": ["INR-CBDC", "INR-CBDC", "USD-Token"]
-    })
+    data = pd.DataFrame(
+        {
+            "user": ["alice", "bob", "charlie"],
+            "amount": [100, 2000, 50],
+            "currency": ["INR-CBDC", "INR-CBDC", "USD-Token"],
+        }
+    )
 
     data["currency_code"] = data["currency"].astype("category").cat.codes
     X = data[["amount", "currency_code"]]

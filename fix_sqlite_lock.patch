@@ -1,0 +1,100 @@
+diff --git a/backend/main.py b/backend/main.py
+index abc1234..fff9999 100644
+--- a/backend/main.py
++++ b/backend/main.py
+@@ -210,12 +210,14 @@ def transfer(
+     from_user = from_user.strip().lower()
+     to_user = to_user.strip().lower()
+
+-    conn = get_db()
+-    cursor = conn.cursor()
++    # ✔ FIX: Use context manager + timeout to avoid database locks
++    with sqlite3.connect(DB_PATH, timeout=5) as conn:
++        conn.row_factory = sqlite3.Row
++        cursor = conn.cursor()
+
+         try:
+-            # 🔐 Begin atomic DB transaction
+-            conn.execute("BEGIN IMMEDIATE;")
++            # 🔐 Begin atomic DB write lock (safe)
++            conn.execute("BEGIN IMMEDIATE;")
+
+             # 🧩 1. Check sender balance
+             cursor.execute("SELECT id, balance FROM wallets WHERE user=? AND currency=?", 
+@@ -313,10 +315,10 @@ def transfer(
+             return {
+                 "status": "success",
+                 "risk": risk,
+-                "from": from_user,
+-                "to": to_user,
+-                "amount": amount,
+-                "currency": currency,
++                "from": from_user,
++                "to": to_user,
++                "amount": amount,
++                "currency": currency,
+                 "blockchain_hash": blockchain_hash,
+                 "explanation": explanation
+             }
+
+@@ -350,10 +352,12 @@ def mint(
+     if x_superkey != admin_key:
+         raise HTTPException(status_code=403, detail="Unauthorized")
+
+-    conn = get_db()
+-    cursor = conn.cursor()
++    # ✔ FIX: Use context manager + timeout
++    with sqlite3.connect(DB_PATH, timeout=5) as conn:
++        conn.row_factory = sqlite3.Row
++        cursor = conn.cursor()
+
+-    # 💰 Ensure wallet exists
++        # 💰 Ensure wallet exists
+         cursor.execute("SELECT id FROM wallets WHERE user=? AND currency=?", (user, currency))
+         wallet = cursor.fetchone()
+         if not wallet:
+@@ -364,7 +368,7 @@ def mint(
+         cursor.execute("""
+             SELECT timestamp FROM transactions
+             WHERE to_wallet=? AND amount=? AND currency=? AND type='mint'
+-            ORDER BY timestamp DESC LIMIT 1
++            ORDER BY timestamp DESC LIMIT 1
+         """, (user, amount, currency))
+         last_tx = cursor.fetchone()
+
+@@ -392,7 +396,7 @@ def mint(
+         cursor.execute(
+             "INSERT INTO transactions (from_wallet, to_wallet, amount, currency, type) VALUES (?, ?, ?, ?, ?)",
+             ("CENTRAL_BANK", user, amount, currency, "mint")
+-        )
++        )
+
+         tx_id = cursor.lastrowid
+
+@@ -414,14 +418,14 @@ def mint(
+         cursor.execute("UPDATE transactions SET blockchain_hash=? WHERE id=?", (blockchain_hash, tx_id))
+
+-    # ✅ Commit to DB and close connection
+-    conn.commit()
+-    conn.close()
++        # ✅ Commit inside context manager
++        conn.commit()
+
+-    return {
+-        "status": "minted",
+-        "user": user,
+-        "amount": amount,
+-        "currency": currency,
+-        "risk": risk,
+-        "blockchain_hash": blockchain_hash,
+-        "explanation": explanation
+-    }
++        return {
++            "status": "minted",
++            "user": user,
++            "amount": amount,
++            "currency": currency,
++            "risk": risk,
++            "blockchain_hash": blockchain_hash,
++            "explanation": explanation
++        }

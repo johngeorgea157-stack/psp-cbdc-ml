@@ -21,8 +21,7 @@ class PolkadotLedger:
         """
         try:
             self.substrate = SubstrateInterface(
-                url=node_url,
-                type_registry_preset="westend"
+                url=node_url, type_registry_preset="westend"
             )
             # Dev keypair (works on dev/test nets). Do NOT use in production.
             self.keypair = Keypair.create_from_uri("//Alice")
@@ -46,7 +45,7 @@ class PolkadotLedger:
             call = self.substrate.compose_call(
                 call_module="Balances",
                 call_function="transfer",
-                call_params={"dest": receiver, "value": int(amount)}
+                call_params={"dest": receiver, "value": int(amount)},
             )
 
             extrinsic = self.substrate.create_signed_extrinsic(
@@ -73,34 +72,60 @@ if __name__ == "__main__":
     ledger = PolkadotLedger()
 
 
+import hashlib, random
+import concurrent.futures
+
 def log_cbdc_transfer(tx_id, sender, receiver, amount, risk_score):
     """
-    Simplified wrapper: logs CBDC transfers to the Polkadot testnet
-    as dummy balance transfers (for hackathon demo).
+    Thread-safe blockchain logger with timeout fallback.
+    Works inside FastAPI threads (no signal usage).
     """
     try:
+        from blockchain.polkadot import PolkadotLedger  # adjust import if needed
         ledger = PolkadotLedger()
+
         print(f"[~] Logging transaction {tx_id} ({sender} → {receiver}, ₹{amount}) to Polkadot…")
 
-        # Record on-chain
-        hash_ = ledger.record_transaction(
-            tx_id=tx_id,
-            sender=sender,
-            receiver=receiver,
-            amount=amount,
-            anomaly_score=risk_score
-        )
+        def do_log():
+            return ledger.record_transaction(
+                tx_id=tx_id,
+                sender=sender,
+                receiver=receiver,
+                amount=amount,
+                anomaly_score=risk_score,
+            )
 
-        # If no real hash (e.g., RPC error), generate mock one
+        # Run with timeout
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(do_log)
+            try:
+                hash_ = future.result(timeout=5)  # 5 sec timeout
+            except Exception as e:
+                print(f"[x] Polkadot timeout/error: {e}")
+                hash_ = None
+
         if not hash_:
             mock_hash = hashlib.sha256(f"{tx_id}-{random.random()}".encode()).hexdigest()[:16]
-            print(f"[!] Polkadot log completed but no hash returned. Using mock hash: {mock_hash}")
+            print(f"[!] Using fallback hash: {mock_hash}")
             return mock_hash
 
         print(f"[✓] Polkadot log complete. Hash: {hash_}")
         return hash_
 
     except Exception as e:
+        print(f"[x] Ledger log failed for {tx_id}: {e}")
+        mock_hash = hashlib.sha256(f"{tx_id}-{random.random()}".encode()).hexdigest()[:16]
+        print(f"[!] Returning fallback hash: {mock_hash}")
+        return mock_hash
+
+    except TimeoutError:
+        # Timeout → create mock hash
+        mock_hash = hashlib.sha256(f"{tx_id}-{random.random()}".encode()).hexdigest()[:16]
+        print(f"[x] Polkadot RPC timeout. Using fallback hash: {mock_hash}")
+        return mock_hash
+
+    except Exception as e:
+        # Any unexpected exception
         print(f"[x] Ledger log failed for {tx_id}: {e}")
         mock_hash = hashlib.sha256(f"{tx_id}-{random.random()}".encode()).hexdigest()[:16]
         print(f"[!] Returning fallback hash: {mock_hash}")

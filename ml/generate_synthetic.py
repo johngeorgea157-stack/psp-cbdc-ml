@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+
 def generate_transactions(n=1000, seed=42):
     np.random.seed(seed)
     users = ["alice", "bob", "charlie", "john", "eve"]
@@ -20,6 +21,7 @@ def generate_transactions(n=1000, seed=42):
     df = pd.DataFrame(data, columns=["user", "amount", "currency"])
     df.to_csv("ml/synthetic_transactions.csv", index=False)
     return df
+
 
 if __name__ == "__main__":
     df = generate_transactions()

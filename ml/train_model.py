@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn.ensemble import IsolationForest
 import joblib
 
+
 def train_model():
     df = pd.read_csv("ml/synthetic_transactions.csv")
 
@@ -15,6 +16,7 @@ def train_model():
 
     joblib.dump(model, "ml/anomaly_model.pkl")
     print("✅ Model trained and saved as ml/anomaly_model.pkl")
+
 
 if __name__ == "__main__":
     train_model()
