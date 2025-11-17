@@ -5,35 +5,50 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-brightgreen.svg)
 
-## Overview
-This project is a prototype **Payment Service Provider (PSP)** layer designed for **CBDC (Central Bank Digital Currency)** and tokenized settlement. (devolopment phase)
+---
 
-It integrates:
-- ✅ PSP Wallet APIs (`/create_wallet`, `/transfer`, `/list_wallets`, `/mint`)
-- ✅ Mock CBDC + Token support (INR-CBDC, USD-Token)
-- ✅ AI/ML Anomaly Detection (planned Phase 3)
-- ✅ Blockchain/DLT hooks for auditability (future extension)
+## Overview
+A lightweight prototype of a **Payment Service Provider (PSP) layer** for simulated CBDC-style transfers.  
+The project shows how a simple **SQL ledger** can be paired with a clean **FastAPI interface**, a **risk engine**, and an optional **Polkadot-based audit trail**—useful for demos, research, and hackathons.
+
+---
 
 ## Features
-- 🔐 Secure **admin-key controlled minting**
-- 💱 Multi-currency support per user
-- 📝 Compliance logs (configurable, local only)
-- ⚡ FastAPI backend, SQLite DB
-- ✅ Fully tested with Pytest & GitHub Actions
+- 🔐 Admin-key controlled minting  
+- 💼 Multi-currency wallet support (INR-CBDC, USD-Token)  
+- 🔄 Secure transfers with duplicate-transaction checks  
+- ⚡ FastAPI backend + SQLite ledger  
+- 🧠 Early anomaly scoring and feature logs  
+- 🔗 Polkadot Westend audit logging (with fallback hashing)  
+- 🧪 Pytest-based CI on GitHub Actions  
+
+---
+
+## Architecture
+- **Ledger:** SQLite (authoritative internal balances)  
+- **API Layer:** FastAPI  
+- **Risk Engine:** Rule-based scoring + feature store (ML-ready)  
+- **Audit Layer:** Optional Polkadot DLT hooks  
+
+This mirrors real CBDC system designs where the **core ledger remains centralized**, and the blockchain acts as a **tamper-evident audit layer**, not a balance store.
+
+---
 
 ## Roadmap
-- Phase 1 → Project setup (✅ done)
-- Phase 2 → PSP + CBDC wallet APIs (✅ done)
-- Phase 3 → AI/ML integration (✅ basic anomaly detection done)
-- Phase 4 → Blockchain audit trail (next up, Day 8+)
-- Phase 5 → Research & Policy documentation
-- Phase 6 → Packaging + Presentation
+- ✔️ Phase 1 — Project skeleton, DB, CI  
+- ✔️ Phase 2 — Wallets, transfers, minting  
+- ✔️ Phase 3 — Basic anomaly scoring  
+- ✔️ Phase 4 — Polkadot audit logging  
+- ⏳ Phase 5 — Research & documentation  
+- ⏳ Phase 6 — UI demo + packaging  
+
+---
 
 ## Getting Started
 
 ### Prerequisites
-- Python 3.11+
-- Virtual environment (`venv` or `conda`)
+- Python **3.11+**
+- Any virtual environment (venv or conda)
 
 ### Setup
 ```bash
