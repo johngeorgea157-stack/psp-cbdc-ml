@@ -81,7 +81,6 @@ def log_cbdc_transfer(tx_id, sender, receiver, amount, risk_score):
     Works inside FastAPI threads (no signal usage).
     """
     try:
-        from blockchain.polkadot import PolkadotLedger  # adjust import if needed
         ledger = PolkadotLedger()
 
         print(f"[~] Logging transaction {tx_id} ({sender} → {receiver}, ₹{amount}) to Polkadot…")
