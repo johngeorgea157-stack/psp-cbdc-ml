@@ -24,3 +24,7 @@ echo ".coverage" >> .gitignore
 echo "substrate/" >> .gitignoredb/charts/
 *.png
 .coverage
+
+psp.db
+psp.db-shm
+psp.db-wal

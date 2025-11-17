@@ -29,16 +29,28 @@ def setup_db():
     init_db()
 
 
+from backend.models.database import init_db, DB_PATH
+from backend.main import app
+from starlette.testclient import TestClient
+
+
 @pytest.fixture(autouse=True)
-def reset_db():
-    """Reset DB before each test so tests don't interfere with each other"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM wallets")
-    cursor.execute("DELETE FROM transactions")
-    conn.commit()
-    conn.close()
+def reset_db(tmp_path, monkeypatch):
+    """
+    FULL DB RESET before each test:
+    - Delete the old DB
+    - Recreate correct schema
+    """
+
+    # 1. Remove existing DB file
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+
+    # 2. Recreate schema
+    init_db()
+
     yield
+
 
 
 @pytest.fixture
