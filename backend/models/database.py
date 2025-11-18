@@ -1,31 +1,20 @@
+# backend/models/database.py
 import os
 import sqlite3
 
-# ------------------------------------------------------------------
-# SINGLE unified database file — always backend/psp.db
-# ------------------------------------------------------------------
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "psp.db"))
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.abspath(os.path.join(BASE_DIR, "..", "psp.db"))
 
 def get_conn():
-    """Return connection with correct SQLite settings."""
-    return sqlite3.connect(
-        DB_PATH,
-        detect_types=sqlite3.PARSE_DECLTYPES,
-        timeout=10,
-    )
-
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def init_db():
-    """Initialize a clean, correct database schema."""
-    print("Initializing database at:", DB_PATH)
+    print(f"📌 Initializing DB at {DB_PATH}")
 
     conn = get_conn()
     c = conn.cursor()
 
-    # --------------------------------------------------------------
-    # Wallets Table (Final Correct Version)
-    # --------------------------------------------------------------
+    # Wallets table
     c.execute("""
     CREATE TABLE IF NOT EXISTS wallets (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,9 +25,7 @@ def init_db():
     );
     """)
 
-    # --------------------------------------------------------------
-    # Transactions Table (Final Correct Version)
-    # --------------------------------------------------------------
+    # Transactions table
     c.execute("""
     CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,9 +41,7 @@ def init_db():
     );
     """)
 
-    # --------------------------------------------------------------
-    # ML Feature Store
-    # --------------------------------------------------------------
+    # ML Feature store
     c.execute("""
     CREATE TABLE IF NOT EXISTS features (
         tx_id INTEGER PRIMARY KEY,
@@ -73,8 +58,4 @@ def init_db():
 
     conn.commit()
     conn.close()
-    print("✔ Database initialized successfully.")
-
-
-if __name__ == "__main__":
-    init_db()
+    print("✔ DB initialized")
