@@ -17,6 +17,10 @@ from backend.graph.insights import router as insights_router
 from fastapi.responses import HTMLResponse
 
 app = FastAPI()
+from models.database import init_db
+
+print("🔧 Initializing DB on startup...")
+init_db()
 DB_PATH = os.path.join(os.path.dirname(__file__), "psp.db")
 
 XAI_EXPLANATIONS = {
