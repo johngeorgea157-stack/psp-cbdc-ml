@@ -11,3 +11,4 @@ scikit-learn==1.4.2
 plotly==5.22.0
 streamlit==1.36.0
 substrate-interface==1.7.11
+httpx==0.28.1
