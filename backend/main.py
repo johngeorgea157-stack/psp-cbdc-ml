@@ -17,7 +17,7 @@ from backend.graph.insights import router as insights_router
 from fastapi.responses import HTMLResponse
 
 app = FastAPI()
-from models.database import init_db
+from backend.models.database import init_db
 
 print("🔧 Initializing DB on startup...")
 init_db()
