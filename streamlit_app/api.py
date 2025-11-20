@@ -2,7 +2,8 @@
 import os
 import requests
 
-BACKEND_URL = "https://psp-cbdc-ml.onrender.com"
+
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 
 def api_get(path, timeout=5):
     url = f"{BACKEND_URL}{path}"
