@@ -2,9 +2,11 @@ pipeline {
     agent any
 
     stages {
-        stage('Hello') {
+        stage('Test') {
             steps {
-                echo 'PSP-CBDC-ML pipeline running from GitHub!'
+                sh 'python --version'
+                sh 'pip install -r requirements.txt'
+                sh 'pytest'
             }
         }
     }
