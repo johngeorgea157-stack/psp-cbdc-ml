@@ -2,10 +2,14 @@ pipeline {
     agent any
 
     stages {
-        stage('Test') {
+        stage('Install Dependencies') {
             steps {
-                sh 'python --version'
                 sh 'pip install -r requirements.txt'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
                 sh 'pytest'
             }
         }
