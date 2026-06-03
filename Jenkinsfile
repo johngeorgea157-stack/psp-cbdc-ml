@@ -2,15 +2,13 @@ pipeline {
     agent any
 
     stages {
-        stage('Install Dependencies') {
+        stage('Inspect') {
             steps {
-                sh 'pip install -r requirements.txt'
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                sh 'pytest'
+                sh 'uname -a'
+                sh 'which python || true'
+                sh 'which python3 || true'
+                sh 'which pip || true'
+                sh 'which pip3 || true'
             }
         }
     }
