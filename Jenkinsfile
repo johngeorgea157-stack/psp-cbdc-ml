@@ -1,14 +1,20 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.11'
+        }
+    }
 
     stages {
-        stage('Inspect') {
+        stage('Install Dependencies') {
             steps {
-                sh 'uname -a'
-                sh 'which python || true'
-                sh 'which python3 || true'
-                sh 'which pip || true'
-                sh 'which pip3 || true'
+                sh 'pip install -r requirements.txt'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh 'pytest'
             }
         }
     }
