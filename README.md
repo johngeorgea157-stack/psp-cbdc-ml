@@ -1,4 +1,4 @@
-# PSP + CBDC + AI/ML Prototype 🚀
+#  CBDC Payments Risk Monitoring Prototype 🚀
 
 [![Tests](https://github.com/johngeorgea157-stack/psp-cbdc-ml/actions/workflows/python-tests.yml/badge.svg)](https://github.com/johngeorgea157-stack/psp-cbdc-ml/actions)
 [![Coverage](https://codecov.io/gh/johngeorgea157-stack/psp-cbdc-ml/branch/main/graph/badge.svg)](https://codecov.io/gh/johngeorgea157-stack/psp-cbdc-ml)
